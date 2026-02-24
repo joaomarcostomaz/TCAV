@@ -1,111 +1,135 @@
-# TCAV
+# Mechanistic Dynamic Interpretability for Tabular Foundation Models in Healthcare
 
-Refactored TabPFN + TCAV workflow extracted from the monolithic `tcav.ipynb` notebook. The codebase now exposes reusable Python packages, a command-line pipeline runner, and two curated notebooks for exploration.
+TCAV-based mechanistic interpretability applied to renal transplant outcome
+prediction using Drift-Resilient TabPFN.
 
-## Project structure
+This repository accompanies the paper
+_"Mechanistic Dynamic Interpretability for Tabular Foundation Models in Healthcare"_
+and contains a single end-to-end Jupyter notebook that reproduces every result
+reported in the manuscript.
 
-- `src/` – modular Python package (data ingestion/prep, modeling, embeddings, concepts, reporting, pipelines, utils).
-- `scripts/run_full_tcav.py` – CLI entry point that executes the entire pipeline headlessly.
-- `notebooks/`
-	- `tcav_refactored.ipynb`: step-by-step walkthrough that mirrors the legacy workflow using the new modules.
-	- `tutorial_tabpfn_tcav.ipynb`: quick-start demo that configures and runs the pipeline in a few cells.
-- `docs/refactor_overview.md` – running log of the refactor plan, status, and pending tasks.
+## Repository layout
 
-## Setup & Installation
+```
+notebooks/
+  renal_mechanistic_dynamic_interpretability_final.ipynb   # Main analysis notebook with renal dataset
 
-### Prerequisites
-- Python 3.10 (recommended)
-- pip or uv package manager
-
-### Step-by-step Installation
-
-1. **Create and activate a virtual environment**:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pyproject.toml             # Direct dependencies (uv / pip-compatible)
+requirements-lock.txt      # Full pinned environment (uv pip freeze)
+.python-version            # Python 3.10.19 pin for uv
+REPRODUCIBILITY.md         # Reproducibility checklist and constraints
 ```
 
-2. **Install dependencies in the correct order**:
+## Prerequisites
+
+- Python 3.10 (tested with 3.10.19).
+- [uv](https://docs.astral.sh/uv/) package manager (recommended) or pip.
+- A CUDA-capable GPU is recommended but not required (the notebook falls back
+  to CPU).
+
+## Installation
+
+### With uv (recommended)
+
 ```bash
-# First, install numpy<2 (critical for compatibility)
-pip install "numpy<2.0.0"
+# Clone the repository
+git clone <repo-url> && cd <repo-dir>
 
-# Install drift-resilient-tabpfn from GitHub
-pip install git+https://github.com/automl/Drift-Resilient_TabPFN.git
+# Create the environment and install all dependencies.
+# uv reads .python-version and pyproject.toml automatically.
+uv sync
 
-# Install opencv with compatible version
-pip install "opencv-contrib-python<4.10"
-
-# Install remaining dependencies
-pip install -r requirements.txt
+# -- OR, for exact byte-for-byte reproduction --
+uv venv
+uv pip install -r requirements-lock.txt
 ```
 
-3. **Apply the critical TabPFN patch**:
+### With pip
 
-The drift-resilient-tabpfn package has a missing function that needs to be manually added. Run:
 ```bash
-cat >> .venv/lib/python3.10/site-packages/tabpfn/utils.py << 'EOF'
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-lock.txt
+```
 
+### Post-install patch
 
+The `drift-resilient-tabpfn` package is missing a helper function that it
+references internally. After installation, add the following to
+`.venv/lib/python3.10/site-packages/tabpfn/utils.py`:
+
+```python
 def print_on_master_only(msg):
     """Print message only on master process (for distributed training compatibility)."""
     print(msg)
-EOF
 ```
 
-**Note**: This patch is required because the drift-resilient-tabpfn package expects a `print_on_master_only` function in `tabpfn.utils` that doesn't exist in the package. This is a known issue with the package.
+This can be applied in one line:
 
-### Verifying the Installation
-
-Test that everything is working:
 ```bash
-python -c "
-from tabpfn.utils import print_on_master_only, skew, hash_tensor
-from tabpfn.scripts.estimator.base import TabPFNClassifier
-from tabpfn.best_models import get_best_tabpfn, TabPFNModelPathsConfig
-print('✓ All imports successful!')
-"
+echo -e '\ndef print_on_master_only(msg):\n    print(msg)' \
+  >> .venv/lib/python3.10/site-packages/tabpfn/utils.py
 ```
 
 ## Usage
 
-1. **Run the pipeline via CLI**:
-```bash
-python scripts/run_full_tcav.py --plots --summary-json outputs/tcav_summary.json
+The project is entirely notebook-driven. Open and run the main notebook
+top-to-bottom:
+
+```
+notebooks/renal_mechanistic_dynamic_interpretability_final.ipynb
 ```
 
-2. **Explore notebooks**:
-   - Open `notebooks/tcav_refactored.ipynb` for step-by-step walkthrough
-   - Open `notebooks/tutorial_tabpfn_tcav.ipynb` for quick-start demo
+The notebook covers the full pipeline:
 
-   Both notebooks use the modular `src/` package and require the setup steps above.
+1. Dataset preparation and temporal splitting.
+2. Drift-Resilient TabPFN training and walk-forward evaluation.
+3. Embedding extraction (with pre-computed cache in `embeddings_saved/`).
+4. Concept decomposition via Dictionary Learning and Sparse Autoencoders.
+5. Decision-tree rule extraction for concept labelling.
+6. TCAV with true gradient computation and statistical significance testing.
+7. Necessity / sufficiency ablation experiments.
+8. Temporal stability analysis and integrated reporting.
 
-3. **Inspect docs**: read `docs/refactor_overview.md` for architecture notes and to-dos.
+### Dataset
 
-## Important Notes
+The dataset is confidential and not included in this repository. Cell 4 of the
+notebook defines `dataset_path`; point it to a Feather file with columns
+`patient_id`, `year`, `event`, and `date`. The sampling, splitting, and
+feature-engineering logic adapts to any dataset that follows this schema.
 
-### Why drift-resilient-tabpfn?
+## Key dependencies
 
-This project requires the **drift-resilient-tabpfn** package (not the official `tabpfn` from PyPI) because:
-- It supports the `additional_x` parameter for drift indicators/domain tokens
-- The official `tabpfn` package doesn't have this functionality
-- This is critical for the temporal drift modeling in this project
+| Package                  | Version          | Notes                                                                                                             |
+| ------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `drift-resilient-tabpfn` | commit `a6e75af` | GitHub fork of TabPFN with `additional_x` drift support. Bundles the `tabpfn` module (no separate PyPI `tabpfn`). |
+| `numpy`                  | 1.26.4           | Must be < 2.0 (drift-resilient-tabpfn is compiled against 1.x).                                                   |
+| `torch`                  | 2.1.2            | Required by drift-resilient-tabpfn.                                                                               |
+| `scikit-learn`           | 1.5.2            | Dictionary Learning, Decision Trees, evaluation metrics.                                                          |
 
-### Import Path
+All direct dependencies are declared in `pyproject.toml`. The full resolved
+environment (198 packages) is frozen in `requirements-lock.txt`.
 
-Always import `TabPFNClassifier` from:
+## Important notes
+
+### Import path
+
+The `tabpfn` module ships inside `drift-resilient-tabpfn`, not as a separate
+PyPI package. The correct import is:
+
 ```python
-from tabpfn.scripts.estimator.base import TabPFNClassifier
+from tabpfn.best_models import get_best_tabpfn, TabPFNModelPathsConfig
 ```
 
-NOT from:
-```python
-from tabpfn import TabPFNClassifier  # ❌ Wrong path for drift-resilient version
-```
+### Notebook outputs
 
-### Version Constraints
+The final notebook ships with all outputs stored. It is designed as a
+**read-only artifact** for the paper: re-execution is possible on the original
+dataset, but the stored outputs are the canonical results. See
+`REPRODUCIBILITY.md` for the full set of constraints.
 
-- **numpy must be < 2.0.0** – The drift-resilient-tabpfn package is not compatible with numpy 2.x
-- **opencv-contrib-python < 4.10** – To maintain compatibility with numpy 1.x
+## References
 
-The original `tcav.ipynb` remains untouched for historical reference.
+- Drift-Resilient TabPFN: <https://github.com/automl/Drift-Resilient_TabPFN\>
+- TabPFN: Hollmann et al., 2023 (<https://arxiv.org/abs/2207.01848\>\)
+- TCAV: Kim et al., 2018 (<https://arxiv.org/abs/1711.11279\>\)

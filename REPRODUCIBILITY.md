@@ -1,210 +1,130 @@
-# Reproducibility Checklist
+# Reproducibility Guide
 
-This document ensures anyone can reproduce your TCAV environment and results.
+This document describes how to reproduce the analysis in this repository and
+documents the constraints that govern the notebook's code and outputs.
 
-## ✅ What's Been Done
+---
 
-### 1. Environment Setup
-- [x] Automated setup script (`setup.sh`)
-- [x] Detailed manual instructions (`SETUP.md`)
-- [x] Frozen requirements with exact versions (`requirements-frozen.txt`)
-- [x] Comprehensive README with setup instructions
-- [x] `.gitignore` to exclude unnecessary files
+## Environment
 
-### 2. Code Fixes Applied
-- [x] Fixed TabPFN imports in `src/modeling/tabpfn_loader.py`
-- [x] Fixed TabPFN imports in `tcav.ipynb` (cell 4)
-- [x] Documented the `print_on_master_only` patch requirement
-- [x] Updated notebooks to use correct import paths
+| Item                    | Value / Constraint                                      |
+| ----------------------- | ------------------------------------------------------- |
+| Python version          | 3.10.19 (pinned in `.python-version`)                   |
+| Package manager         | uv (venv created by uv 0.9.7)                           |
+| Direct dependencies     | Listed in `pyproject.toml`                              |
+| Full pinned environment | `requirements-lock.txt` (198 packages, `uv pip freeze`) |
+| Critical custom package | `drift-resilient-tabpfn` at commit `a6e75af` (GitHub)   |
 
-### 3. Documentation
-- [x] Main README with installation steps
-- [x] SETUP.md with detailed troubleshooting
-- [x] This REPRODUCIBILITY.md checklist
-- [x] Inline code comments explaining critical parts
+### Why Python 3.10?
 
-## 📋 Quick Start for New Users
+`drift-resilient-tabpfn` and its transitive dependency tree (torch 2.1.2,
+numpy < 2.0, etc.) are tested against Python 3.10. Other minor versions in the
+3.10 series should work.
 
-1. Clone the repository
-2. Run `./setup.sh` (or follow `SETUP.md` for manual setup)
-3. Verify installation works
-4. Run notebooks or scripts
+### Why numpy < 2.0?
 
-## 🔧 Critical Configuration
+`drift-resilient-tabpfn` includes compiled extensions built against the NumPy
+1.x C ABI. Importing under NumPy 2.x causes `RuntimeError` at import time.
 
-### Python Version
-- **Required**: Python 3.10
-- **Tested**: Python 3.10.19
-- **Not tested**: Python 3.11+, Python 3.9-
+---
 
-### Key Dependencies
+## Reproducing the environment
 
-| Package | Version Constraint | Why? |
-|---------|-------------------|------|
-| numpy | `<2.0.0` | drift-resilient-tabpfn compiled against NumPy 1.x |
-| drift-resilient-tabpfn | From GitHub | Supports `additional_x` parameter for drift |
-| opencv-contrib-python | `<4.10` | Compatible with NumPy 1.x |
-| torch | `<2.2,>=2.1` | Required by drift-resilient-tabpfn |
-| scikit-learn | `<1.6,>=1.4.2` | Required by drift-resilient-tabpfn |
-
-### Manual Patch Required
-
-The drift-resilient-tabpfn package has a bug. After installation, add this function to `tabpfn/utils.py`:
-
-```python
-def print_on_master_only(msg):
-    """Print message only on master process (for distributed training compatibility)."""
-    print(msg)
-```
-
-**Location**: `.venv/lib/python3.10/site-packages/tabpfn/utils.py`
-
-This is automated in `setup.sh` but needs manual application if installing manually.
-
-## 🎯 Correct Import Paths
-
-### ✅ Correct
-```python
-from tabpfn.scripts.estimator.base import TabPFNClassifier
-from tabpfn.best_models import get_best_tabpfn, TabPFNModelPathsConfig
-from tabpfn.utils import print_on_master_only, skew, hash_tensor
-```
-
-### ❌ Incorrect
-```python
-from tabpfn import TabPFNClassifier  # Wrong for drift-resilient version
-```
-
-## 📦 Files for Reproducibility
-
-| File | Purpose | Status |
-|------|---------|--------|
-| `setup.sh` | Automated setup script | ✅ Created |
-| `SETUP.md` | Detailed setup guide | ✅ Created |
-| `requirements.txt` | Main dependencies | ✅ Exists |
-| `requirements-frozen.txt` | Exact versions snapshot | ✅ Created |
-| `README.md` | Project overview + setup | ✅ Updated |
-| `.gitignore` | Exclude temp files | ✅ Created |
-| `REPRODUCIBILITY.md` | This checklist | ✅ Created |
-
-## 🧪 Verification Steps
-
-After setup, verify everything works:
+### Option A -- exact reproduction (recommended)
 
 ```bash
-# 1. Check Python version
-python --version  # Should be 3.10.x
+uv venv                                # creates .venv with Python 3.10.19
+uv pip install -r requirements-lock.txt
+```
 
-# 2. Verify imports
+This installs the identical package versions used to produce the paper results.
+
+### Option B -- dependency resolution from pyproject.toml
+
+```bash
+uv sync
+```
+
+This lets uv resolve from the declared direct dependencies. The result may
+differ from the lockfile if upstream packages have released new builds.
+
+### Post-install patch
+
+After either option, apply the missing-function patch to
+`drift-resilient-tabpfn`:
+
+```bash
+echo -e '\ndef print_on_master_only(msg):\n    print(msg)' \
+  >> .venv/lib/python3.10/site-packages/tabpfn/utils.py
+```
+
+See `README.md` for details.
+
+---
+
+## Verification
+
+After installation, confirm the environment is correct:
+
+```bash
+# Python version
+python --version                       # expected: Python 3.10.19
+
+# Core imports
 python -c "
-from tabpfn.utils import print_on_master_only, skew, hash_tensor
-from tabpfn.scripts.estimator.base import TabPFNClassifier
+from tabpfn.utils import print_on_master_only
 from tabpfn.best_models import get_best_tabpfn, TabPFNModelPathsConfig
-print('✅ All imports successful!')
-"
-
-# 3. Check numpy version
-python -c "import numpy; print(f'NumPy: {numpy.__version__}')"
-# Should be 1.26.x (not 2.x)
-
-# 4. Verify additional_x support
-python -c "
-from tabpfn.scripts.estimator.base import TabPFNClassifier
-import numpy as np
-clf = TabPFNClassifier(device='cpu')
-X = np.random.randn(50, 5)
-y = np.random.randint(0, 2, 50)
-clf.fit(X, y, additional_x={'dist_shift_domain': np.zeros(50)})
-print('✅ additional_x parameter works!')
+import numpy, torch, lightgbm, sklearn
+print(f'numpy     {numpy.__version__}')
+print(f'torch     {torch.__version__}')
+print(f'lightgbm  {lightgbm.__version__}')
+print(f'sklearn   {sklearn.__version__}')
+print('All imports OK')
 "
 ```
 
-## 🐳 Docker Option (Future)
+Expected output:
 
-For absolute reproducibility, consider creating a Docker image:
-
-```bash
-docker build -t tcav:latest .
-docker run -it -v $(pwd):/app tcav:latest
+```
+numpy     1.26.4
+torch     2.1.2
+lightgbm  3.3.5
+sklearn   1.5.2
+All imports OK
 ```
 
-A `Dockerfile` template is provided in `SETUP.md`.
+---
 
-## 📊 Data Files
+## Notebook execution
 
-The project requires:
-- `free_light_chain_mortality.csv` (included in repo)
+The canonical notebook is:
 
-## 🚀 Running the Project
-
-### Option 1: Notebooks
-```bash
-jupyter notebook notebooks/tcav_refactored.ipynb
-# or
-code notebooks/tcav_refactored.ipynb  # VS Code
+```
+notebooks/renal_mechanistic_dynamic_interpretability_final.ipynb
 ```
 
-### Option 2: CLI Script
-```bash
-python scripts/run_full_tcav.py --plots --summary-json outputs/tcav_summary.json
-```
+### With the original dataset
 
-### Option 3: Python Module
-```python
-from src.pipelines.full_tcav import run_full_tcav_pipeline
-results = run_full_tcav_pipeline(
-    data_path="./free_light_chain_mortality.csv",
-    plots=True
-)
-```
+Set `dataset_path` in cell 4 to the location of the Feather file, then run all
+cells top-to-bottom. The notebook is deterministic given the same data and
+environment (`np.random.seed(42)` and `random_state=42` throughout).
 
-## ⚠️ Known Issues
+### Without the original dataset
 
-1. **NumPy 2.x incompatibility**: Will cause crashes. Must use NumPy < 2.0.0
-2. **Missing print_on_master_only**: Requires manual patch (automated in setup.sh)
-3. **Wrong import path**: Must use `tabpfn.scripts.estimator.base`, not `tabpfn` directly
+The dataset is confidential. Pre-computed embeddings are provided in
+`embeddings_saved/` so that cells 20 onward (embedding loading, concept
+decomposition, TCAV, ablations, reporting) can execute without the raw data.
+Cells 6-19 (data ingestion, feature engineering, model training) will fail
+without the dataset.
 
-## 🔄 Updating Dependencies
+---
 
-If you need to update packages:
+## Files for reproducibility
 
-```bash
-# Update a specific package
-pip install --upgrade package-name
+| File                    | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `pyproject.toml`        | Direct dependencies with pinned versions    |
+| `requirements-lock.txt` | Full environment snapshot (`uv pip freeze`) |
+| `.python-version`       | Python interpreter pin for uv               |
 
-# Recreate frozen requirements
-pip freeze > requirements-frozen.txt
-
-# Test that everything still works
-python -c "from src import config; print('✓ Import test passed')"
-```
-
-## 📝 Version History
-
-| Date | Python | NumPy | drift-resilient-tabpfn | Notes |
-|------|--------|-------|------------------------|-------|
-| 2026-01-14 | 3.10.19 | 1.26.4 | commit a6e75af | Initial reproducible setup |
-
-## 🆘 Getting Help
-
-If setup fails:
-1. Check `SETUP.md` troubleshooting section
-2. Verify you followed steps in exact order
-3. Check Python version is 3.10.x
-4. Ensure virtual environment is activated
-5. Try the automated `./setup.sh` script
-
-## ✨ Success Criteria
-
-Your setup is successful when:
-- [ ] `./setup.sh` runs without errors
-- [ ] All verification steps pass
-- [ ] Notebooks open and run cell 4 without import errors
-- [ ] `python scripts/run_full_tcav.py` executes
-- [ ] Model can use `additional_x` parameter
-
-## 📚 References
-
-- drift-resilient-tabpfn: https://github.com/automl/Drift-Resilient_TabPFN
-- TabPFN paper: https://arxiv.org/abs/2207.01848
-- TCAV paper: https://arxiv.org/abs/1711.11279
+---
