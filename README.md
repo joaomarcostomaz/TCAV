@@ -54,9 +54,8 @@ pip install -r requirements-lock.txt
 
 ### Post-install patch
 
-The `drift-resilient-tabpfn` package is missing a helper function that it
-references internally. After installation, add the following to
-`.venv/lib/python3.10/site-packages/tabpfn/utils.py`:
+We noticed that, in some installations, the `drift-resilient-tabpfn` package missed a helper function that it references internally. If that happens to you, add the following to
+`.venv/lib/python3.10/site-packages/tabpfn/utils.py` after installation:
 
 ```python
 def print_on_master_only(msg):
@@ -73,18 +72,18 @@ echo -e '\ndef print_on_master_only(msg):\n    print(msg)' \
 
 ## Usage
 
-The project is entirely notebook-driven. Open and run the main notebook
+The project is entirely notebook-driven. The notebook that uses the renal dataset is not meant to be ran, though, as the dataset will not be shared. Open and run the Myeloma notebook
 top-to-bottom:
 
 ```
-notebooks/renal_mechanistic_dynamic_interpretability_final.ipynb
+notebooks/myeloma_mechanistic_dynamic_interpretability_final.ipynb
 ```
 
 The notebook covers the full pipeline:
 
-1. Dataset preparation and temporal splitting.
+1. Dataset preparation.
 2. Drift-Resilient TabPFN training and walk-forward evaluation.
-3. Embedding extraction (with pre-computed cache in `embeddings_saved/`).
+3. Embedding extraction.
 4. Concept decomposition via Dictionary Learning and Sparse Autoencoders.
 5. Decision-tree rule extraction for concept labelling.
 6. TCAV with true gradient computation and statistical significance testing.
@@ -93,37 +92,16 @@ The notebook covers the full pipeline:
 
 ### Dataset
 
-The dataset is confidential and not included in this repository. Cell 4 of the
+The renal dataset is confidential and not included in this repository. Cell 4 of the
 notebook defines `dataset_path`; point it to a Feather file with columns
 `patient_id`, `year`, `event`, and `date`. The sampling, splitting, and
 feature-engineering logic adapts to any dataset that follows this schema.
 
-## Key dependencies
+The Myeloma dataset, however, is public and was shared with the Drift-Resilient TabPFN project.
 
-| Package                  | Version          | Notes                                                                                                             |
-| ------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `drift-resilient-tabpfn` | commit `a6e75af` | GitHub fork of TabPFN with `additional_x` drift support. Bundles the `tabpfn` module (no separate PyPI `tabpfn`). |
-| `numpy`                  | 1.26.4           | Must be < 2.0 (drift-resilient-tabpfn is compiled against 1.x).                                                   |
-| `torch`                  | 2.1.2            | Required by drift-resilient-tabpfn.                                                                               |
-| `scikit-learn`           | 1.5.2            | Dictionary Learning, Decision Trees, evaluation metrics.                                                          |
+### Renal notebook outputs
 
-All direct dependencies are declared in `pyproject.toml`. The full resolved
-environment (198 packages) is frozen in `requirements-lock.txt`.
-
-## Important notes
-
-### Import path
-
-The `tabpfn` module ships inside `drift-resilient-tabpfn`, not as a separate
-PyPI package. The correct import is:
-
-```python
-from tabpfn.best_models import get_best_tabpfn, TabPFNModelPathsConfig
-```
-
-### Notebook outputs
-
-The final notebook ships with all outputs stored. It is designed as a
+The renal notebook ships with all outputs stored. It is designed as a
 **read-only artifact** for the paper: re-execution is possible on the original
 dataset, but the stored outputs are the canonical results. See
 `REPRODUCIBILITY.md` for the full set of constraints.

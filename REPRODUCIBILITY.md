@@ -30,16 +30,7 @@ numpy < 2.0, etc.) are tested against Python 3.10. Other minor versions in the
 
 ## Reproducing the environment
 
-### Option A -- exact reproduction (recommended)
-
-```bash
-uv venv                                # creates .venv with Python 3.10.19
-uv pip install -r requirements-lock.txt
-```
-
-This installs the identical package versions used to produce the paper results.
-
-### Option B -- dependency resolution from pyproject.toml
+### Option A -- dependency resolution from pyproject.toml
 
 ```bash
 uv sync
@@ -48,19 +39,15 @@ uv sync
 This lets uv resolve from the declared direct dependencies. The result may
 differ from the lockfile if upstream packages have released new builds.
 
-### Post-install patch
-
-After either option, apply the missing-function patch to
-`drift-resilient-tabpfn`:
+### Option B -- installation from requirements-lock.txt
 
 ```bash
-echo -e '\ndef print_on_master_only(msg):\n    print(msg)' \
-  >> .venv/lib/python3.10/site-packages/tabpfn/utils.py
+uv venv                                # creates .venv with Python 3.10.19
+uv pip install -r requirements-lock.txt
 ```
 
-See `README.md` for details.
+This installs the identical package versions used to produce the paper results.
 
----
 
 ## Verification
 
@@ -97,34 +84,11 @@ All imports OK
 
 ## Notebook execution
 
-The canonical notebook is:
+The canonical notebooks are:
 
 ```
 notebooks/renal_mechanistic_dynamic_interpretability_final.ipynb
+notebooks/myeloma_mechanistic_dynamic_interpretability_final.ipynb
 ```
 
-### With the original dataset
-
-Set `dataset_path` in cell 4 to the location of the Feather file, then run all
-cells top-to-bottom. The notebook is deterministic given the same data and
-environment (`np.random.seed(42)` and `random_state=42` throughout).
-
-### Without the original dataset
-
-The dataset is confidential. Pre-computed embeddings are provided in
-`embeddings_saved/` so that cells 20 onward (embedding loading, concept
-decomposition, TCAV, ablations, reporting) can execute without the raw data.
-Cells 6-19 (data ingestion, feature engineering, model training) will fail
-without the dataset.
-
----
-
-## Files for reproducibility
-
-| File                    | Purpose                                     |
-| ----------------------- | ------------------------------------------- |
-| `pyproject.toml`        | Direct dependencies with pinned versions    |
-| `requirements-lock.txt` | Full environment snapshot (`uv pip freeze`) |
-| `.python-version`       | Python interpreter pin for uv               |
-
----
+`myeloma_mechanistic_dynamic_interpretability_final` is the one you should run to reproduce results.

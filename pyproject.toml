@@ -36,4 +36,7 @@ dependencies = [
 
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.backends"
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
