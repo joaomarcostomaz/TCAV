@@ -1,0 +1,40 @@
+paths:
+  root_dir: "."
+  data_feather: "../renal/tidy_event_data.feather"
+  results_dir: "results"
+  external_dir: "external"
+
+ts:
+  rng_seed: 42
+
+  # Data / feature selection
+  final_top_k: 500
+  m_candidates: 3000
+  train_year_start: 1997
+  train_year_end: 2006
+
+  # Training defaults
+  lookback: 5
+  batch_size: 256
+  epochs: 20
+  lr: 0.001
+  weight_decay: 0.0001
+  early_stop_patience: 4
+  grad_clip: 1.0
+
+  # Runtime
+  num_workers: 0
+  use_cuda_if_available: true
+  model_names:
+    - tsmixer
+    - dlinear
+    - itransformer
+
+tabpfn:
+  rng_seed: 42
+  model_name: "tabpfn_dist_model_1"
+  default_batch_predict: 512
+  n_factors: 8
+  pure_quantile: 0.05
+  n_random_runs: 15
+  concept_sample_fraction: 1.0

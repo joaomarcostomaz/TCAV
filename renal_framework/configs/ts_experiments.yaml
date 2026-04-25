@@ -1,0 +1,28 @@
+# Focused TS experiment overrides
+
+paths:
+  results_dir: "results/ts_runs"
+
+ts:
+  rng_seed: 42
+
+  # You can change these for quick/full runs
+  lookback: 8
+  batch_size: 256
+  epochs: 25
+  lr: 0.001
+  weight_decay: 0.0001
+  early_stop_patience: 5
+  grad_clip: 1.0
+
+  # Feature stage
+  final_top_k: 500
+  m_candidates: 3000
+
+  # Default TS baselines
+  model_names:
+    - tsmixer
+    - dlinear
+    - itransformer
+    - patchtst
+    - nbeatsx

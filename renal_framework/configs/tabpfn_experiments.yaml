@@ -1,0 +1,48 @@
+# Focused TabPFN concept/interpretability experiment overrides
+
+paths:
+  results_dir: "results/tabpfn_runs"
+  external_dir: "external"
+
+tabpfn:
+  rng_seed: 42
+  model_name: "tabpfn_dist_model_1"
+  default_batch_predict: 512
+
+  # Concept decomposition / TCAV
+  n_factors: 8
+  pure_quantile: 0.05
+  n_random_runs: 15
+  concept_sample_fraction: 1.0
+
+ts:
+  # retained for shared preprocessing if needed
+  train_year_start: 1997
+  train_year_end: 2006
+  final_top_k: 500
+  m_candidates: 3000
+
+temporal_geometry:
+  enabled: true
+  analysis_source: "sae"
+
+  concept_train_min_pos: 10
+  concept_train_min_neg: 10
+  logistic_C: 0.1
+  logistic_max_iter: 5000
+
+  covariate_cosine_threshold: 0.95
+  concept_cosine_threshold: 0.85
+  norm_change_threshold: 0.20
+
+  clustering_method: "hdbscan"
+  min_cluster_size: 30
+  min_samples: null
+  metric: "euclidean"
+
+  bifurcation_mass_threshold: 0.20
+  bifurcation_min_strong_targets: 2
+  nn_k: 5
+
+temporal_geometry_paths:
+  output_dirname: "temporal_geometry_v2"

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "renal-framework"
+version = "0.1.0"
+description = "Modular research framework for renal temporal modeling, TabPFN concepts, TCAV, and ACE analyses."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Research Team" }
+]
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
